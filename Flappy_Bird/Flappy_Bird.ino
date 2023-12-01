@@ -230,7 +230,8 @@ public:
     */
   void fly() {
     erase();
-    yPos -= velocity;
+    yPos -= 1;
+    velocity = 0;
     draw()
   }
 };
@@ -242,6 +243,8 @@ private:
   Bird flappy;
   int numTunnels;
   bool buttonPressed;
+  Tunnel tunnel_1((rand() % 8 + 2))
+  Tunnel tunnel_2((rand() % 8 + 2));
 
 
 public:
@@ -271,8 +274,43 @@ public:
     */
   void update() {
     time = millis()
-      // TODO fixme
-      return;
+    button_press_time = 0;
+    current_bird_y_pos = 0;
+    // create a tunnel every 10th second
+      if ((time % 10000) == 0){
+        // creates new tunnel
+        tunnel_2 = Tunnel((rand() % 8 + 2));
+      }
+      else if ((time % 5000) == 0){
+        // creates new tunnel
+        tunnel_1 = Tunnel((rand() % 8 + 2));
+      }
+      // TODO: fix random magic numbers
+      // ensure that the tunnels goes thorugh the screen every 5 seconds
+      if (time % 156 == 0){
+        tunnel_1.move();
+        tunnel_2.move();
+      }
+      // this way we buffer the jump time and make sure that the button can't be held
+      if (button_pressed && button_press_time == 0){
+        button_press_time = millis();
+        current_bird_y_pos = flappy.getYPos();
+      }
+      // stop the bird from flying 3 pixels up
+      if (current_bird_y_pop == flappy.getYPos + 3){
+        button_press_time = 0;
+        current_bird_y_pos = 0;
+      }
+      // make the bird fly
+      if (button_press_time != 0 && time % 100 == 0){
+        flappy.fly();
+      }
+
+      // the bird falls if not flying
+      if (!button_press_time && time % 156 == 0){
+        flappy.fall();
+      }
+
   }
 
   /* 
@@ -282,8 +320,8 @@ public:
     */
   bool birdHit() {
     // assuming that tunnel_1 has been created
-      if (bird.getXPos() > tunnel_1.getXPos() - 3 && bird.getXPos() < tunnel_1.getXPos() + TUNNEL_DIAMETER){
-        if (bird.getYPos() < tunnel_1.getGapPos() + 2 || bird.getYPos() > tunnel_1.getGapPos() + 5){
+      if (flappy.getXPos() > tunnel_1.getXPos() - 3 && flappy.getXPos() < tunnel_1.getXPos() + TUNNEL_DIAMETER){
+        if (flappy.getYPos() < tunnel_1.getGapPos() + 2 || flappy.getYPos() > tunnel_1.getGapPos() + 5){
           return true;
         } 
       }
