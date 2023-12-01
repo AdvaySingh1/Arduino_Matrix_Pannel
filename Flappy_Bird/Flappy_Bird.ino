@@ -1,5 +1,4 @@
-
-void #include<gamma.h>
+#include<gamma.h>
 #include <RGBmatrixPanel.h>
 #include <Adafruit_GFX.h>
 
@@ -100,12 +99,12 @@ public:
        E: draws the tunnel in green first and then redraws the gap as black
     */
   void draw() {
-    for (int col = xPos; j < xPos + TUNNEL_DIAMETER; j++) {
+    for (int col = xPos; col < xPos + TUNNEL_DIAMETER; col++) {
       for (int row = 0; row < 16; row++)
         matrix.drawPixel(col, row, GREEN.to_333());
     }
-    for (int col = xPos; col < xPos + TUNNEL_DIAMETER; j++) {
-      for (int row = 0; i < gapPos + 5; row++) {
+    for (int col = xPos; col < xPos + TUNNEL_DIAMETER; col++) {
+      for (int row = 0; row < gapPos + 5; row++) {
         matrix.drawPixel(col, row, BLACK.to_333());
       }
     }
@@ -220,7 +219,8 @@ public:
   void fall() {
     erase();
     yPos += velocity;
-    draw()
+    velocity += acceleration;
+    draw();
   }
 
   /* 
@@ -232,7 +232,7 @@ public:
     erase();
     yPos -= 1;
     velocity = 0;
-    draw()
+    draw();
   }
 };
 
@@ -243,12 +243,14 @@ private:
   Bird flappy;
   int numTunnels;
   bool buttonPressed;
-  Tunnel tunnel_1((rand() % 8 + 2))
-  Tunnel tunnel_2((rand() % 8 + 2));
-
+  Tunnel tunnel_1 = Tunnel(int(random(2, 11)));
+  Tunnel tunnel_2 = Tunnel(int(random(2, 11)));
+  // might have to change to unassigned long;
+  int button_press_time = 0;
+  int current_bird_y_pos = 0;
 
 public:
-  ``/* 
+    /* 
        R: nothing
        M: buttonPressed
        E: sets buttonPressed to button_pressed
@@ -263,54 +265,6 @@ public:
     */
   int getNumTunnels() {
     return numTunnels;
-  }
-  /* 
-       R: nothing
-       M: nothing
-       E: create two tunnel varriables that are a set length distance from each other and keep moving them
-          reinitialize them after a certain amount of time
-          move the bird
-          increment the number of tunnels when tunnel goes out of frame
-    */
-  void update() {
-    time = millis()
-    button_press_time = 0;
-    current_bird_y_pos = 0;
-    // create a tunnel every 10th second
-      if ((time % 10000) == 0){
-        // creates new tunnel
-        tunnel_2 = Tunnel((rand() % 8 + 2));
-      }
-      else if ((time % 5000) == 0){
-        // creates new tunnel
-        tunnel_1 = Tunnel((rand() % 8 + 2));
-      }
-      // TODO: fix random magic numbers
-      // ensure that the tunnels goes thorugh the screen every 5 seconds
-      if (time % 156 == 0){
-        tunnel_1.move();
-        tunnel_2.move();
-      }
-      // this way we buffer the jump time and make sure that the button can't be held
-      if (button_pressed && button_press_time == 0){
-        button_press_time = millis();
-        current_bird_y_pos = flappy.getYPos();
-      }
-      // stop the bird from flying 3 pixels up
-      if (current_bird_y_pop == flappy.getYPos + 3){
-        button_press_time = 0;
-        current_bird_y_pos = 0;
-      }
-      // make the bird fly
-      if (button_press_time != 0 && time % 100 == 0){
-        flappy.fly();
-      }
-
-      // the bird falls if not flying
-      if (!button_press_time && time % 156 == 0){
-        flappy.fall();
-      }
-
   }
 
   /* 
@@ -327,10 +281,65 @@ public:
       }
       return false;
   }
+
+    /* 
+       R: nothing
+       M: nothing
+       E: create two tunnel varriables that are a set length distance from each other and keep moving them
+          reinitialize them after a certain amount of time
+          move the bird
+          increment the number of tunnels when tunnel goes out of frame
+    */
+  void update(bool button_pressed) {
+    buttonPressed = button_pressed;
+    time = millis();
+    if (!birdHit()){
+      // create a tunnel every 10th second
+      if ((time % 10000) == 0){
+        // creates new tunnel end of pannel
+        tunnel_2 = Tunnel(random(2, 11));
+        numTunnels += 1;
+      }
+      // creates tunnel every 5th second
+      else if ((time % 5000) == 0){
+        // creates new tunnel at end of the pannel
+        tunnel_1 = Tunnel(random(2, 11));
+        numTunnels += 1;
+      }
+      // TODO: fix random magic numbers
+      // ensure that the tunnels goes thorugh the screen every 10 seconds
+      if (time % 312 == 0){
+        tunnel_1.move();
+        tunnel_2.move();
+      }
+      // this way we buffer the jump time and make sure that the button can't be held
+      if (buttonPressed && button_press_time == 0){
+        button_press_time = millis();
+        current_bird_y_pos = flappy.getYPos();
+      }
+      // stop the bird from flying 3 pixels up
+      if (current_bird_y_pos == flappy.getYPos() + 3){
+        button_press_time = 0;
+        current_bird_y_pos = 0;
+      }
+      // make the bird fly (done at a rate 3 times as fast as the tunnels move)
+      if (button_press_time != 0 && time % 104 == 0){
+        flappy.fly();
+      }
+
+      // the bird falls if not flying (done at a rate 2 times as much as when tunnels move)
+      if (button_press_time == 0 && time % 156 == 0){
+        flappy.fall();
+      }
+    }
+    else{
+      // print game over for 2 seconds and then number of tunnels
+      // do something
+    }
+  }
 };
 
-Game game;
-
+Game game(digitalRead(BUTTON_PIN_NUMBER) == HIGH);
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
@@ -343,12 +352,7 @@ void setup() {
 void loop() {
   int potentiometer_value = analogRead(POTENTIOMETER_PIN_NUMBER);
   bool button_pressed = (digitalRead(BUTTON_PIN_NUMBER) == HIGH);
-  if (game.birdHit()) {
-    printGameOver();
-    printNumLogs(game.getNumTunnels);
-  } else {
-    game.update(button_pressed);
-  }
+  game.update(button_pressed);
 }
 /* 
   R: nothing
@@ -356,34 +360,26 @@ void loop() {
   E: prints number of tunnels passed for a certain amount of time
 */
 void printNumLogs(int numTunnels) {
-  // TODO: fix time part
-  unsigned long time;
-  time = millis();
-  while (millis() - time < 2000) {
-    matrix.fillScreen(BLACK.to_333());
-    matrix.setCursor(0, 0);
-    matrix.setTextSize(0.5);
-    matrix.setTextColor(RED.to_333());
-    matrix.print(numTunnels);
-    matrix.print(" ");
-    matrix.print("Tunnels");
+  matrix.fillScreen(BLACK.to_333());
+  matrix.setCursor(0, 0);
+  matrix.setTextSize(0.5);
+  matrix.setTextColor(RED.to_333());
+  matrix.print(numTunnels);
+  matrix.print(" ");
+  matrix.print("Tunnels");
+    
   }
   /* 
   R: nothing
   M: nothing
   E: prints game over for a certain amount of time
 */
-  void printGameOver() {
-    // TODO: fix time part
-    unsigned long time;
-    time = millis();
-    while (millis() - time < 2000) {
-      matrix.fillScreen(BLACK.to_333());
-      matrix.setCursor(0, 0);
-      matrix.setTextSize(0.5);
-      matrix.setTextColor(RED.to_333());
-      matrix.print("GAME");
-      matrix.print(" ");
-      matrix.print("OVER");
-    }
+void printGameOver() {
+  matrix.fillScreen(BLACK.to_333());
+  matrix.setCursor(0, 0);
+  matrix.setTextSize(0.5);
+  matrix.setTextColor(RED.to_333());
+  matrix.print("GAME");
+  matrix.print(" ");
+  matrix.print("OVER");
   }
