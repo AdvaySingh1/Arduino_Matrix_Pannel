@@ -15,14 +15,12 @@ const int POTENTIOMETER_PIN_NUMBER = 5;
 const int BUTTON_PIN_NUMBER = 10;
 
 
-// TODO: change constant nums
-const int BIRD_ACCELERATION = 0;
+const int BIRD_ACCELERATION = 1;
 const int TUNNEL_DIAMETER = 3;
-const int BIRD_X_POS = 0;
-const int BIRD_Y_POS = 0;
+const int BIRD_X_POS = 2;
+const int BIRD_Y_POS = 7;
 
-void printNumLogs(int numTunnels);
-void printGameOver();
+void printGameOver(int numTunnels);
 
 // a global variable that represents the LED screen
 RGBmatrixPanel matrix(A, B, C, CLK, LAT, OE, false);
@@ -104,7 +102,7 @@ public:
         matrix.drawPixel(col, row, GREEN.to_333());
     }
     for (int col = xPos; col < xPos + TUNNEL_DIAMETER; col++) {
-      for (int row = 0; row < gapPos + 5; row++) {
+      for (int row = gapPos; row < gapPos + 8; row++) {
         matrix.drawPixel(col, row, BLACK.to_333());
       }
     }
@@ -152,7 +150,7 @@ public:
     */
   Bird() {
     xPos = BIRD_X_POS;
-    yPos = BIRD_Y_POS;
+    yPos = 7;
     velocity = 0;
     acceleration = BIRD_ACCELERATION;
   }
@@ -190,7 +188,7 @@ public:
   void draw() {
     for (int row = yPos; row < yPos + 2; row++) {
       for (int col = xPos; col < xPos + 3; col++) {
-        matrix.drawPixel(row, col, YELLOW.to_333());
+        matrix.drawPixel(col, row, YELLOW.to_333());
       }
     }
     matrix.drawPixel(xPos + 1, yPos, BLUE.to_333());
@@ -204,7 +202,7 @@ public:
   void erase() {
     for (int row = yPos; row < yPos + 2; row++) {
       for (int col = xPos; col < xPos + 3; col++) {
-        matrix.drawPixel(row, col, BLACK.to_333());
+        matrix.drawPixel(col, row, BLACK.to_333());
       }
     }
     matrix.drawPixel(xPos + 1, yPos, BLACK.to_333());
@@ -219,7 +217,7 @@ public:
   void fall() {
     erase();
     yPos += velocity;
-    velocity += acceleration;
+    updateVelocity();
     draw();
   }
 
@@ -274,10 +272,18 @@ public:
     */
   bool birdHit() {
     // assuming that tunnel_1 has been created
-      if (flappy.getXPos() > tunnel_1.getXPos() - 3 && flappy.getXPos() < tunnel_1.getXPos() + TUNNEL_DIAMETER){
-        if (flappy.getYPos() < tunnel_1.getGapPos() + 2 || flappy.getYPos() > tunnel_1.getGapPos() + 5){
+      if (flappy.getXPos() >= tunnel_1.getXPos() - 3 && flappy.getXPos() <= tunnel_1.getXPos() + TUNNEL_DIAMETER){
+        if (flappy.getYPos() < tunnel_1.getGapPos() || flappy.getYPos() > tunnel_1.getGapPos() + 7){
           return true;
         } 
+      }
+      if (flappy.getXPos() >= tunnel_2.getXPos() - 3 && flappy.getXPos() <= tunnel_2.getXPos() + TUNNEL_DIAMETER){
+        if (flappy.getYPos() < tunnel_2.getGapPos() || flappy.getYPos() > tunnel_2.getGapPos() + 7){
+          return true;
+        } 
+      }
+      else if(flappy.getYPos() > 15 || flappy.getYPos() == 0){
+        return true;
       }
       return false;
   }
@@ -295,20 +301,22 @@ public:
     time = millis();
     if (!birdHit()){
       // create a tunnel every 10th second
-      if ((time % 10000) == 0){
+      if ((time % 10800) == 0){
         // creates new tunnel end of pannel
-        tunnel_2 = Tunnel(random(2, 11));
-        numTunnels += 1;
+        tunnel_2 = Tunnel(random(1, 9));
       }
       // creates tunnel every 5th second
-      else if ((time % 5000) == 0){
+      else if ((time % 5400) == 0){
         // creates new tunnel at end of the pannel
-        tunnel_1 = Tunnel(random(2, 11));
+        tunnel_1 = Tunnel(random(3, 11));
+      }
+      // detect the number of tunnels
+      if ((flappy.getXPos() == tunnel_1.getXPos() || flappy.getXPos() == tunnel_2.getXPos()) && time % 312 == 0){
         numTunnels += 1;
       }
       // TODO: fix random magic numbers
       // ensure that the tunnels goes thorugh the screen every 10 seconds
-      if (time % 312 == 0){
+      if (time % 281 == 0){
         tunnel_1.move();
         tunnel_2.move();
       }
@@ -317,24 +325,23 @@ public:
         button_press_time = millis();
         current_bird_y_pos = flappy.getYPos();
       }
-      // stop the bird from flying 3 pixels up
-      if (current_bird_y_pos == flappy.getYPos() + 3){
+      // stop the bird from flying 2 pixels up
+      if (current_bird_y_pos == flappy.getYPos() + 2){
         button_press_time = 0;
         current_bird_y_pos = 0;
       }
       // make the bird fly (done at a rate 3 times as fast as the tunnels move)
-      if (button_press_time != 0 && time % 104 == 0){
+      if (button_press_time != 0 && time % 126 == 0){
         flappy.fly();
       }
 
       // the bird falls if not flying (done at a rate 2 times as much as when tunnels move)
-      if (button_press_time == 0 && time % 156 == 0){
+      if (button_press_time == 0 && time % 198 == 0){
         flappy.fall();
       }
     }
     else{
-      // print game over for 2 seconds and then number of tunnels
-      // do something
+      printGameOver(numTunnels);
     }
   }
 };
@@ -354,32 +361,20 @@ void loop() {
   bool button_pressed = (digitalRead(BUTTON_PIN_NUMBER) == HIGH);
   game.update(button_pressed);
 }
-/* 
-  R: nothing
-  M: nothing
-  E: prints number of tunnels passed for a certain amount of time
-*/
-void printNumLogs(int numTunnels) {
-  matrix.fillScreen(BLACK.to_333());
-  matrix.setCursor(0, 0);
-  matrix.setTextSize(0.5);
-  matrix.setTextColor(RED.to_333());
-  matrix.print(numTunnels);
-  matrix.print(" ");
-  matrix.print("Tunnels");
-    
-  }
   /* 
   R: nothing
   M: nothing
   E: prints game over for a certain amount of time
 */
-void printGameOver() {
+void printGameOver(int numTunnels) {
   matrix.fillScreen(BLACK.to_333());
   matrix.setCursor(0, 0);
-  matrix.setTextSize(0.5);
+  matrix.setTextSize(1);
   matrix.setTextColor(RED.to_333());
   matrix.print("GAME");
   matrix.print(" ");
   matrix.print("OVER");
+  matrix.print(numTunnels);
+  matrix.print(" ");
+  matrix.print("Tunnels");
   }
