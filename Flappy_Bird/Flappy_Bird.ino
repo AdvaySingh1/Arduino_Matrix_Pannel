@@ -1,6 +1,7 @@
 #include<gamma.h>
 #include <RGBmatrixPanel.h>
 #include <Adafruit_GFX.h>
+#include <Fonts/Tiny3x3a2pt7b.h>
 
   // define the wiring of the LED screen
   const uint8_t CLK = 8;
@@ -20,7 +21,8 @@ const int TUNNEL_DIAMETER = 3;
 const int BIRD_X_POS = 2;
 const int BIRD_Y_POS = 7;
 
-void printGameOver(int numTunnels);
+void printFlappyBird(int time);
+void printGameOver(int numTunnels, int time);
 
 // a global variable that represents the LED screen
 RGBmatrixPanel matrix(A, B, C, CLK, LAT, OE, false);
@@ -241,8 +243,8 @@ private:
   Bird flappy;
   int numTunnels;
   bool buttonPressed;
-  Tunnel tunnel_1 = Tunnel(int(random(2, 11)));
-  Tunnel tunnel_2 = Tunnel(int(random(2, 11)));
+  Tunnel tunnel_1 = Tunnel(int(random(3, 8)));
+  Tunnel tunnel_2 = Tunnel(int(random(1, 6)));
   // might have to change to unassigned long;
   int button_press_time = 0;
   int current_bird_y_pos = 0;
@@ -298,20 +300,20 @@ public:
     */
   void update(bool button_pressed) {
     buttonPressed = button_pressed;
-    time = millis();
+    time = millis() - 2000;
     if (!birdHit()){
       // create a tunnel every 10th second
       if ((time % 10800) == 0){
         // creates new tunnel end of pannel
-        tunnel_2 = Tunnel(random(1, 9));
+        tunnel_2 = Tunnel(random(1, 6));
       }
       // creates tunnel every 5th second
       else if ((time % 5400) == 0){
         // creates new tunnel at end of the pannel
-        tunnel_1 = Tunnel(random(3, 11));
+        tunnel_1 = Tunnel(random(3, 8));
       }
       // detect the number of tunnels
-      if ((flappy.getXPos() == tunnel_1.getXPos() || flappy.getXPos() == tunnel_2.getXPos()) && time % 312 == 0){
+      if ((flappy.getXPos() == tunnel_1.getXPos() || flappy.getXPos() == tunnel_2.getXPos()) && time % 281 == 0){
         numTunnels += 1;
       }
       // TODO: fix random magic numbers
@@ -326,7 +328,7 @@ public:
         current_bird_y_pos = flappy.getYPos();
       }
       // stop the bird from flying 2 pixels up
-      if (current_bird_y_pos == flappy.getYPos() + 2){
+      if (current_bird_y_pos == flappy.getYPos() + 3){
         button_press_time = 0;
         current_bird_y_pos = 0;
       }
@@ -341,7 +343,9 @@ public:
       }
     }
     else{
-      printGameOver(numTunnels);
+     // printGameOver(numTunnels);
+      time = millis();
+      printGameOver(numTunnels, time);
     }
   }
 };
@@ -352,6 +356,12 @@ void setup() {
   Serial.begin(9600);
   pinMode(BUTTON_PIN_NUMBER, INPUT);
   matrix.begin();
+  int time = millis();
+  printFlappyBird(time);
+  //if (game.birdHit()){
+   // time = millis();
+   // printGameOver(game.getNumTunnels(), time);
+  //}
 }
 
 
@@ -364,17 +374,59 @@ void loop() {
   /* 
   R: nothing
   M: nothing
-  E: prints game over for a certain amount of time
+  E: prints flappy bird for a certain amount of time
 */
-void printGameOver(int numTunnels) {
+void printFlappyBird(int time){
   matrix.fillScreen(BLACK.to_333());
-  matrix.setCursor(0, 0);
   matrix.setTextSize(1);
   matrix.setTextColor(RED.to_333());
-  matrix.print("GAME");
-  matrix.print(" ");
-  matrix.print("OVER");
-  matrix.print(numTunnels);
-  matrix.print(" ");
-  matrix.print("Tunnels");
+  while (millis() - time < 2000){
+    matrix.setCursor(1, 0);
+    matrix.print("F");
+    matrix.setCursor(6, 0);
+    matrix.print("L");
+    matrix.setCursor(11, 0);
+    matrix.print("A");
+    matrix.setCursor(16, 0);
+    matrix.print("P");
+    matrix.setCursor(21, 0);
+    matrix.print("P");
+    matrix.setCursor(26, 0);
+    matrix.print("Y");
+    matrix.setCursor(4, 9);
+    matrix.print("BIRD");
   }
+  matrix.fillScreen(BLACK.to_333());
+}
+  /* 
+  R: nothing
+  M: nothing
+  E: prints game over for a certain amount of time
+*/
+void printGameOver(int numTunnels, int time) {
+  matrix.fillScreen(BLACK.to_333());
+  matrix.setTextSize(1);
+  matrix.setTextColor(RED.to_333());
+  while (millis() - time < 2000){
+    matrix.setCursor(4, 0);
+    matrix.print("Game");
+    matrix.setCursor(4, 9);
+    matrix.print("Over");
+  }
+  matrix.fillScreen(BLACK.to_333());
+  while (millis() - time < 4000){
+  matrix.setCursor(13, 1);
+  matrix.print(numTunnels);
+    //matrix.setFont(&Tiny3x3a2pt7b);
+  if(numTunnels == 1){
+  matrix.setCursor(8, 9);
+  matrix.print("GAP");
+  }
+  else{
+  matrix.setCursor(4, 9);
+  matrix.print("GAPS");}
+  }
+  //matrix.fillScreen(BLACK.to_333());
+  matrix.setFont();
+}
+
